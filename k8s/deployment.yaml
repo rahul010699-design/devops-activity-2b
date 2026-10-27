@@ -1,0 +1,65 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: activity-2b-api
+  namespace: activity-2b
+  labels:
+    app: activity-2b-api
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: activity-2b-api
+  template:
+    metadata:
+      labels:
+        app: activity-2b-api
+    spec:
+      serviceAccountName: activity-2b-app
+      containers:
+        - name: api
+          image: asia-south1-docker.pkg.dev/lunar-works-316500/devops-gcp-repo/activity-2b-api:v3
+          imagePullPolicy: Always
+          ports:
+            - name: http
+              containerPort: 5000
+          env:
+            - name: GCP_PROJECT_ID
+              value: "lunar-works-316500"
+            - name: DB_PASSWORD_SECRET
+              value: "activity-2b-dev-postgres-password"
+            - name: DB_HOST
+              value: "10.50.0.11"
+            - name: DB_PORT
+              value: "5432"
+            - name: DB_NAME
+              value: "activity2b"
+            - name: DB_USER
+              value: "activity2b_user"
+          resources:
+            requests:
+              cpu: 100m
+              memory: 256Mi
+            limits:
+              cpu: 500m
+              memory: 512Mi
+          startupProbe:
+            httpGet:
+              path: /health
+              port: http
+            periodSeconds: 5
+            failureThreshold: 24
+          readinessProbe:
+            httpGet:
+              path: /health
+              port: http
+            periodSeconds: 10
+            timeoutSeconds: 3
+            failureThreshold: 3
+          livenessProbe:
+            httpGet:
+              path: /health
+              port: http
+            periodSeconds: 20
+            timeoutSeconds: 3
+            failureThreshold: 3

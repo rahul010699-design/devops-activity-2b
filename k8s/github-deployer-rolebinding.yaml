@@ -1,0 +1,13 @@
+﻿apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: activity-2b-github-deployer
+  namespace: activity-2b
+subjects:
+  - kind: User
+    name: activity2b-github-deployer@lunar-works-316500.iam.gserviceaccount.com
+    apiGroup: rbac.authorization.k8s.io
+roleRef:
+  kind: Role
+  name: activity-2b-github-deployer
+  apiGroup: rbac.authorization.k8s.io

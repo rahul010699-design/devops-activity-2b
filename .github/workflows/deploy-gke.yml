@@ -1,0 +1,81 @@
+name: Activity 2B - Build and Deploy to GKE
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - "app/**"
+      - "k8s/deployment.yaml"
+      - "k8s/service.yaml"
+      - "k8s/hpa.yaml"
+      - "Dockerfile"
+      - "requirements.txt"
+      - ".github/workflows/deploy-gke.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  id-token: write
+
+env:
+  PROJECT_ID: lunar-works-316500
+  REGION: asia-south1
+  GAR_REPOSITORY: devops-gcp-repo
+  IMAGE_NAME: activity-2b-api
+  GKE_CLUSTER: activity-2a-dev-gke
+  GKE_LOCATION: asia-south1
+  K8S_NAMESPACE: activity-2b
+  DEPLOYMENT_NAME: activity-2b-api
+  CONTAINER_NAME: api
+
+jobs:
+  build-and-deploy:
+    name: Build, Push, and Deploy
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Authenticate to Google Cloud using Workload Identity
+        uses: google-github-actions/auth@v2
+        with:
+          workload_identity_provider: projects/360368960816/locations/global/workloadIdentityPools/github-pool/providers/activity-2b-github-provider
+          service_account: activity2b-github-deployer@lunar-works-316500.iam.gserviceaccount.com
+
+      - name: Set up Google Cloud CLI
+        uses: google-github-actions/setup-gcloud@v2
+
+      - name: Configure Docker authentication
+        run: gcloud auth configure-docker asia-south1-docker.pkg.dev --quiet
+
+      - name: Build and push image
+        env:
+          IMAGE_TAG: ${{ github.sha }}
+        run: |
+          IMAGE_URI="${REGION}-docker.pkg.dev/${PROJECT_ID}/${GAR_REPOSITORY}/${IMAGE_NAME}:${IMAGE_TAG}"
+          docker build --tag "$IMAGE_URI" .
+          docker push "$IMAGE_URI"
+          echo "IMAGE_URI=$IMAGE_URI" >> "$GITHUB_ENV"
+
+      - name: Get GKE credentials
+        uses: google-github-actions/get-gke-credentials@v2
+        with:
+          cluster_name: ${{ env.GKE_CLUSTER }}
+          location: ${{ env.GKE_LOCATION }}
+          project_id: ${{ env.PROJECT_ID }}
+
+      - name: Deploy image to Activity 2B
+        run: |
+          kubectl set image deployment/${DEPLOYMENT_NAME} \
+            ${CONTAINER_NAME}=${IMAGE_URI} \
+            --namespace="${K8S_NAMESPACE}"
+
+          kubectl rollout status deployment/${DEPLOYMENT_NAME} \
+            --namespace="${K8S_NAMESPACE}" \
+            --timeout=180s
+
+      - name: Verify deployment
+        run: |
+          kubectl get deployment,pods,service,hpa --namespace="${K8S_NAMESPACE}"

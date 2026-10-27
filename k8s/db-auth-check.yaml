@@ -1,0 +1,29 @@
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: activity-2b-db-auth-check
+  namespace: activity-2b
+spec:
+  backoffLimit: 0
+  activeDeadlineSeconds: 120
+  template:
+    spec:
+      serviceAccountName: activity-2b-app
+      restartPolicy: Never
+      containers:
+        - name: auth-check
+          image: asia-south1-docker.pkg.dev/lunar-works-316500/devops-gcp-repo/activity-2b-api:v2
+          command: ["python", "app/check_db_auth.py"]
+          env:
+            - name: GCP_PROJECT_ID
+              value: "lunar-works-316500"
+            - name: DB_PASSWORD_SECRET
+              value: "activity-2b-dev-postgres-password"
+            - name: DB_HOST
+              value: "10.50.0.11"
+            - name: DB_PORT
+              value: "5432"
+            - name: DB_NAME
+              value: "activity2b"
+            - name: DB_USER
+              value: "activity2b_user"
